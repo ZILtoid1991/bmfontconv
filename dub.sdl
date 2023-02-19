@@ -1,0 +1,8 @@
+name "bmfontconv"
+description "Converts older bitmap font formats into the newer AngelCode BMFont format"
+authors "laszl"
+copyright "Copyright © 2023, laszl"
+license "Boost"
+dependency "bmfont" version="~>0.2.0"
+dependency "dimage" version="~>0.2.2"
+dependency "argsd" version="~>1.1.0"
