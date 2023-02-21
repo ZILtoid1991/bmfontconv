@@ -148,14 +148,15 @@ int stbrp_pack_rects (stbrp_context* context, stbrp_rect* rects, int num_rects) 
 struct stbrp_rect
 {
 	// reserved for your use:
-	int            id;
+	int				id;
+	int				page;
 
 	// input:
-	int            w, h;
+	int				w, h;
 
 	// output:
-	int            x, y;
-	int            was_packed;  // non-zero if valid packing
+	int				x, y;
+	int				was_packed;  // non-zero if valid packing
 }
 
 /// Initialize a rectangle packer to:
