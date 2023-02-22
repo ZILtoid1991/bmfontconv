@@ -43,7 +43,9 @@ public class BDFParser {
 	int size;
 	int fontDescent;	///needed for baseline offset conversion
 
-
+	this (string filename) {
+		src = File(filename);
+	}
 	void parse() {
 		foreach (currLine; src.byLine) {
 			auto words = split(currLine, " ");
@@ -59,6 +61,9 @@ public class BDFParser {
 						case "FONTBOUNDINGBOX":
 							fontDescent = to!int(words[4]);
 							break;
+						case "ENDPROPERTIES":
+							mode = Mode.init;
+							break;
 						default:
 							break;
 					}
@@ -67,6 +72,7 @@ public class BDFParser {
 					switch (words[0]) {
 						case "ENCODING":
 							currChar.charID = to!int(words[1]);
+							writeln("Parsing character `", currChar.charID, "`");
 							break;
 						case "BBX":
 							currRect.w = to!int(words[1]);
@@ -129,6 +135,9 @@ public class BDFParser {
 							currRect.id = cast(int)chars.length;
 							mode = Mode.CharParse;
 							break;
+						case "CHARS":
+							numChars = to!int(words[1]);
+							break;
 						default:
 							break;
 					}
@@ -142,7 +151,7 @@ public class BDFParser {
 			Rect[] result;
 			foreach (Rect key; src) {
 				if (!key.was_packed) {
-					key.pageNum = pageNum;
+					key.page = pageNum;
 					result ~= key;
 				} else {
 					output ~= key;
@@ -152,11 +161,11 @@ public class BDFParser {
 		}
 		stbrp_context rectPackContext;
 		stbrp_node[] nodes;
-		nodes.length = tSize * 2;
+		nodes.length = tSize * 4;
 		Rect[] packedRects, unpackedRects = rects;
 		do {
 			stbrp_init_target(&rectPackContext, tSize, tSize, nodes.ptr, cast(int)nodes.length);
-			result = packRects(&context, unpackedRects);
+			result = packRects(&rectPackContext, unpackedRects);
 			pageNum++;
 			unpackedRects = getUnpackedRects(unpackedRects, packedRects);
 		} while (!result);
@@ -164,50 +173,53 @@ public class BDFParser {
 		outputFont.info = bmfont.Font.Info(cast(short)size, 0, 0, 100, 1, [0,0,0,0], [0,0], name, 0);
 		ubyte[][] pages;
 		pages.length = pageNum;
-		foreach (ubyte[] key; pages) {
+		foreach (ref ubyte[] key; pages) {
 			key.length = tSize * tSize;
 		}
-		void writeToPage(int x, int y, int p, ubyte v) {
-			pages[p][x + (y * tSize)] = v;
+		void writeToPage(int x, int y, ref ubyte[] p, ubyte v) {
+			p[x + (y * tSize)] = v;
 		}
-		foreach (Rect key ; packedRects) {
+		synchronized foreach (Rect key ; packedRects) {
 			CharInfo currCh = chars[key.id];
+			writeln("Packing character `", currCh.charID, "`");
 			outputFont.chars ~= bmfont.Font.Char(currCh.charID, cast(ushort)key.x, cast(ushort)key.y, cast(ushort)key.w, 
 					cast(ushort)key.h, cast(short)currCh.xOffset, cast(short)currCh.yOffset, cast(short)currCh.xadvance, 
 					cast(ubyte)key.page, bmfont.Channels.all);
-			int i;
+			//int i;
 			for (int y ; y < key.h ; y++) {
 				for (int x ; x < key.w ; x++) {
-					writeToPage(x, y, key.page, currCh.bin[i]);
-					i++;
+					writeToPage(key.x + x, key.y + y, pages[key.page], currCh.bin[x + (y * key.w)]);
+					//i++;
 				}
 			}
 		}
 		IImageData[] finishedPages;
 		if (formatflags.TO_Channels_Mono) {
 			foreach (page ; pages) {
-				finishedPages ~= new MonochromeImageData!ubyte(page, tSize, tSize, PixelFormat.Grayscale8Bit, 8);
+				IImageData imgDat = new MonochromeImageData!ubyte(page, tSize, tSize, PixelFormat.Grayscale8Bit, 8);
+				imgDat.flipVertical();
+				finishedPages ~= imgDat;
 			}
 		}
 		if (formatflags.TextureOut_Targa) {
 			foreach (size_t i, IImageData finishedPage ; finishedPages) {
 				TGA outputImg = new TGA(finishedPage);
-				string filename = name ~ to!string(i) ~ ".tga";
+				string filename = name ~ "-" ~ to!string(i) ~ ".tga";
 				File outputFile = File(filename, "wb");
 				outputImg.save(outputFile);
 				outputFont.pages ~= filename;
 			}
 		} else if (formatflags.TextureOut_PNG) {
 			foreach (size_t i, IImageData finishedPage ; finishedPages) {
-				PNG outputImg = new PNG(finishedPage);
-				string filename = name ~ to!string(i) ~ ".png";
+				PNG outputImg = new PNG(finishedPage, null);
+				string filename = name ~ "-" ~ to!string(i) ~ ".png";
 				File outputFile = File(filename, "wb");
 				outputImg.save(outputFile);
 				outputFont.pages ~= filename;
 			}
 		}
 		ubyte[] fontBin = outputFont.toBinary;
-		File outputFile = File(filename ~ ".fnt", "wb");
+		File outputFile = File(name ~ ".fnt", "wb");
 		outputFile.rawWrite(fontBin);
 	}
 }
