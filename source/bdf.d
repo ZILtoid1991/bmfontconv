@@ -100,12 +100,18 @@ public class BDFParser {
 				case Mode.BitmapParse:
 					if (words[0] != "ENDCHAR") {
 						ubyte[] s, d;
-						foreach (w ; words) {
-							s ~= cast(ubyte)to!int(w, 16);
+						if (words.length > 1) {
+							foreach (w ; words) {
+								s ~= cast(ubyte)to!int(w, 16);
+							}
+						} else if ((currLine.length & 1) == 0) {
+							for (int i ; i < currLine.length ; i+=2) {
+								s ~= cast(ubyte)to!int(currLine[i..i+2], 16);
+							}
 						}
 						d.length = currRect.w;
 						for (size_t i; i < d.length ; i++) {
-							const size_t j = i & 7, k = i>>3;
+							const size_t j = i & 7, k = i>>>3;
 							d[i] = ((s[k]>>(7-j)) & 1) ? ubyte.max : ubyte.min;
 						}
 						currChar.bin ~= d;
@@ -197,12 +203,13 @@ public class BDFParser {
 		if (formatflags.TO_Channels_Mono) {
 			foreach (page ; pages) {
 				IImageData imgDat = new MonochromeImageData!ubyte(page, tSize, tSize, PixelFormat.Grayscale8Bit, 8);
-				imgDat.flipVertical();
+				//imgDat.flipVertical();
 				finishedPages ~= imgDat;
 			}
 		}
 		if (formatflags.TextureOut_Targa) {
 			foreach (size_t i, IImageData finishedPage ; finishedPages) {
+				finishedPage.flipVertical();
 				TGA outputImg = new TGA(finishedPage);
 				string filename = name ~ "-" ~ to!string(i) ~ ".tga";
 				File outputFile = File(filename, "wb");
