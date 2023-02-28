@@ -80,10 +80,10 @@ public class BDFParser {
 							//bitmapLinesLeft = currRect.h;
 							currChar.xOffset = to!int(words[3]);
 							const int yOffset = to!int(words[4]);
-							if (yOffset < 0)
-								currChar.yOffset = size - currRect.h + (yOffset - fontDescent);
-							else
-								currChar.yOffset = size - currRect.h - (yOffset + fontDescent);
+							//if (yOffset < 0)
+							currChar.yOffset = size - currRect.h + (yOffset + fontDescent);
+							//else
+							//	currChar.yOffset = size - currRect.h - (yOffset + fontDescent);
 							break;
 						case "ENDCHAR":
 							chars ~= currChar;
@@ -207,6 +207,9 @@ public class BDFParser {
 				finishedPages ~= imgDat;
 			}
 		}
+		outputFont.common = bmfont.Font.Common(1, cast(ushort)size, cast(ushort)tSize, cast(ushort)tSize, 
+				cast(ushort)pages.length, 0, bmfont.ChannelType.glyph, bmfont.ChannelType.glyph, bmfont.ChannelType.glyph, 
+				bmfont.ChannelType.glyph);
 		if (formatflags.TextureOut_Targa) {
 			foreach (size_t i, IImageData finishedPage ; finishedPages) {
 				finishedPage.flipVertical();
