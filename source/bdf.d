@@ -79,6 +79,7 @@ public class BDFParser {
 							currRect.h = to!int(words[2]);
 							//bitmapLinesLeft = currRect.h;
 							currChar.xOffset = to!int(words[3]);
+							currChar.xadvance = currRect.w;
 							const int yOffset = to!int(words[4]);
 							//if (yOffset < 0)
 							currChar.yOffset = size - currRect.h + (yOffset + fontDescent);
